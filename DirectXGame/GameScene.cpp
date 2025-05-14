@@ -21,7 +21,7 @@ void GameScene::Intialize() {
 
 	model_ = Model::Create();
 
-	modelBlock_ = Model::CreateFromOBJ("cube");
+	modelBlock_ = Model::CreateFromOBJ("block");
 
 	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
 
