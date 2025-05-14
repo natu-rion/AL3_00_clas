@@ -1,7 +1,7 @@
 #pragma once
 #include <KamataEngine.h>
 
-class Player {
+class SkyDome {
 public:
 	void Initialize(KamataEngine::Model* model, uint32_t textureHandle, KamataEngine::Camera* camera);
 

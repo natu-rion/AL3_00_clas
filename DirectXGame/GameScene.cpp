@@ -1,62 +1,126 @@
 #include "GameScene.h"
-#include "Player.h"
+
 using namespace KamataEngine;
 
-void GameScene::Initialize() {
-	textureHandle = TextureManager::Load("ibu.png");
-	////スプライトインスタンスの生成
-	// spreite = Sprite::Create(textureHandle, {100, 50});
-	// 3Dモデルの生成
-	model = Model::Create();
-	////ワールドトランスフォームの初期化
-	// worldTransform.Initialize();
-	// カメラの初期化
-	camera.Initialize();
+GameScene::~GameScene() {
+	// デストラクタ
+	delete model_;
+	delete player_;
+	delete debugCamera_;
+	delete modelSkydome_;
 
-	// Playerの生成
-	player = new Player();
-	// Playerの初期化
-	player->Initialize(model, textureHandle, &camera);
+	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			delete worldTransformBlock;
+		}
+	}
+	worldTransformBlocks_.clear();
+}
+
+void GameScene::Intialize() {
+
+	model_ = Model::Create();
+
+	modelBlock_ = Model::CreateFromOBJ("cube");
+
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+
+	camera_.Initialize();
+
+	// デバックカメラの生成
+	debugCamera_ = new DebugCamera(1280, 720);
+
+	player_ = new Player();
+
+	skydome_ = new SkyDome();
+
+	player_->Initialize(model_, textureHandle_, &camera_);
+	skydome_->Initialize(modelSkydome_, textureHandle_, &camera_);
+
+	// 要素数
+	const uint32_t kNumBlockVirtical = 10;
+	const uint32_t kNumBlockHorizontal = 20;
+	// ブロック一個分の横幅
+	const float kBlockWidth = 2.0f;
+	const float kBlockHeight = 2.0f;
+
+	worldTransformBlocks_.resize(kNumBlockVirtical);
+	for (uint32_t i = 0; i < kNumBlockVirtical; i++) {
+		worldTransformBlocks_[i].resize(kNumBlockHorizontal);
+	}
+
+	// キューブの生成
+	for (uint32_t i = 0; i < kNumBlockVirtical; i++) {
+		for (uint32_t j = 0; j < kNumBlockHorizontal; j++) {
+			if ((i + j) % 2 == 0)
+				continue;
+			worldTransformBlocks_[i][j] = new WorldTransform();
+			worldTransformBlocks_[i][j]->Initialize();
+			worldTransformBlocks_[i][j]->translation_.x = kBlockWidth * j;
+			worldTransformBlocks_[i][j]->translation_.y = kBlockHeight * i;
+		}
+	}
 }
 
 void GameScene::Update() {
-	// Playerの更新
-	player->Update();
+	player_->Update();
+	skydome_->Update();
+	debugCamera_->Update();
 
-	////スプライトの今の座標を取得
-	// Vector2 position = spreite->GetPosition();
-	////座標を{2,1}移動
-	// position.x += 2.0f;
-	// position.y += 1.0f;
-	////移動した座標をスプライトに反映
-	// spreite->SetPosition(position);
+#ifdef _DEBUG
+	if (Input::GetInstance()->TriggerKey(DIK_0)) {
+		isDebugCameraActive_ = !isDebugCameraActive_;
+	}
+#endif // DEBUG
+	if (isDebugCameraActive_) {
+		// デバックカメラの更新
+		debugCamera_->Update();
+		// デバックカメラのビュー行列
+		camera_.matView = debugCamera_->GetCamera().matView;
+		// デバックカメラのプロジェクション行列
+		camera_.matProjection = debugCamera_->GetCamera().matProjection;
+		// ビュープロジェクション行列の転送
+		camera_.TransferMatrix();
+
+	} else {
+		// ビュープロジェクション行列の更新と転送
+		camera_.UpdateMatrix();
+	}
+
+	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			if (!worldTransformBlock)
+				continue;
+			worldTransformBlock->matWorld_ = MakeAffineMatrix(worldTransformBlock->scale_, worldTransformBlock->rotation_, worldTransformBlock->translation_);
+
+			// 定数バッファに転送する
+			worldTransformBlock->TransferMatrix();
+		}
+	}
 }
 
 void GameScene::Draw() {
-	// DirectXCommonインスタンスの取得
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	////スプライト描画後処理
-	// Sprite::PreDraw(dxCommon->GetCommandList());
 
-	// spreite->Draw();
-
-	////スプライト描画後処理
-	// Sprite::PostDraw();
-
-	// 3Dモデル描画前処理
 	Model::PreDraw(dxCommon->GetCommandList());
 
-	// Playerの描画
-	player->Draw();
-	// 3Dモデル描画
-	// model->Draw(worldTransform, camera, textureHandle);
+	player_->Draw();
+	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			if (!worldTransformBlock)
+				continue;
+			modelBlock_->Draw(*worldTransformBlock, camera_);
+		}
+	}
 
-	// 3Dモデル描画後処理
+	skydome_->Draw();
+	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			if (!worldTransformBlock)
+				continue;
+			modelBlock_->Draw(*worldTransformBlock, camera_);
+		}
+	}
+
 	Model::PostDraw();
-}
-
-GameScene::~GameScene() {
-	 //delete spreite;
-	delete model;
-	 delete player;
 }

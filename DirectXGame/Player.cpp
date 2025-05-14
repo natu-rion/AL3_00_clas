@@ -1,4 +1,3 @@
-#include "KamataEngine.h"
 #include "Player.h"
 #include "cassert"
 using namespace KamataEngine;
@@ -12,10 +11,10 @@ void Player::Initialize(Model* model, uint32_t textureHandle, Camera* camera) {
 
 	camera_ = camera;
 
-	worldTransform.Initialize();
+	worldTransform_.Initialize();
 }
 
-void Player::Update() { worldTransform.TransferMatrix(); }
+void Player::Update() { worldTransform_.TransferMatrix(); }
 
-void Player::Draw() { model_->Draw(worldTransform, *camera_, textureHandle_); 
+void Player::Draw() { model_->Draw(worldTransform_, *camera_, textureHandle_); 
 }
